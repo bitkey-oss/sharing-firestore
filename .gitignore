@@ -1,0 +1,10 @@
+.DS_Store
+.vscode/
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm
+.netrc
+.index-build/
+.build/
