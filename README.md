@@ -4,8 +4,8 @@ A lightweight wrapper for Firebase's Firestore database that integrates with the
 
 A swift library that extends the [swift-sharing](https://github.com/pointfreeco/swift-sharing) library with support for Firebase's Firestore.
 
-* [Learn more](#Learn-more)
 * [Overview](#Overview)
+* [Quick start](#Quick-start)
 * [Demos](#Demos)
 * [Documentation](#Documentation)
 * [Installation](#Installation)
