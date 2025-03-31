@@ -16,7 +16,7 @@ extension SharingFirestoreSync {
 
     /// The sort order (ascending or descending)
     public let sortOrder: SortOrder
-    
+
     var isDescending: Bool {
       sortOrder.isDescending
     }
@@ -40,12 +40,12 @@ extension SharingFirestoreSync {
     public static func desc(_ field: String) -> OrderBy {
       OrderBy(field: field, sortOrder: .descending)
     }
-    
+
     /// An enum representing sort order for Firestore queries
     public enum SortOrder: Hashable, Sendable {
       case ascending
       case descending
-      
+
       var isDescending: Bool {
         switch self {
         case .ascending: return false
@@ -66,7 +66,7 @@ extension SharingFirestoreSync {
   ///   var configuration: SharingFirestoreSync.CollectionConfiguration<Todo> {
   ///     .init(
   ///       collectionPath: "todos",
-  ///       orderBy: ("createdAt", .descending),
+  ///       orderBy: .desc("createdAt"),
   ///       animation: .default
   ///     )
   ///   }

@@ -62,7 +62,7 @@ extension SharedReaderKey {
   ///   .sync(
   ///     configuration: .init(
   ///       collectionPath: "todos",
-  ///       orderBy: ("createdAt", true),
+  ///       orderBy: .desc("createdAt"),
   ///       animation: .default
   ///     )
   ///   )
@@ -98,7 +98,7 @@ extension SharedReaderKey {
   ///   .sync(
   ///     configuration: .init(
   ///       collectionPath: "todos",
-  ///       orderBy: ("createdAt", true),
+  ///       orderBy: .desc("createdAt"),
   ///       animation: .default
   ///     )
   ///   )

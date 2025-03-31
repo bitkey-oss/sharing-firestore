@@ -82,7 +82,7 @@ And [`sync`](<doc:Sharing/SharedReaderKey/sync(configuration:database:)-3c82j>) 
   .sync(
     configuration: .init(
       collectionPath: "todos",
-      orderBy: ("createdAt", true),
+      orderBy: .desc("createdAt"),
       animation: .default
     )
   )

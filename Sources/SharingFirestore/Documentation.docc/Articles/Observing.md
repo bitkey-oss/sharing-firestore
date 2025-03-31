@@ -48,7 +48,7 @@ struct TodoListView: View {
     .sync(
       configuration: .init(
         collectionPath: "todos",
-        orderBy: ("createdAt", true),
+        orderBy: .desc("createdAt"),
         animation: .default
       )
     )
@@ -123,7 +123,7 @@ class TodosModel {
     .sync(
       configuration: .init(
         collectionPath: "todos",
-        orderBy: ("createdAt", true),
+        orderBy: .desc("createdAt"),
         animation: .default
       )
     )

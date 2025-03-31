@@ -51,7 +51,7 @@ This `defaultFirestore` connection is used implicitly by SharingFirestore's stra
     .sync(
       configuration: .init(
         collectionPath: "todos",
-        orderBy: ("createdAt", true),
+        orderBy: .desc("createdAt"),
         animation: .default
       )
     )

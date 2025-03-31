@@ -20,7 +20,7 @@ To sync a collection of documents with Firestore, use the `sync` key with a coll
   .sync(
     configuration: .init(
       collectionPath: "todos",
-      orderBy: ("createdAt", true),
+      orderBy: .desc("createdAt"),
       animation: .default
     )
   )
@@ -90,7 +90,7 @@ struct UserTodos: SharingFirestoreSync.KeyCollectionRequest {
   var configuration: SharingFirestoreSync.CollectionConfiguration<Todo> {
     .init(
       collectionPath: "users/\(userId)/todos",
-      orderBy: ("createdAt", true),
+      orderBy: .desc("createdAt"),
       animation: .default
     )
   }
@@ -158,7 +158,7 @@ let testTodos: [Todo] = [
   .sync(
     configuration: .init(
       collectionPath: "todos",
-      orderBy: ("createdAt", true),
+      orderBy: .desc("createdAt"),
       testingValue: testTodos,  // Used during testing
       animation: .default
     )
