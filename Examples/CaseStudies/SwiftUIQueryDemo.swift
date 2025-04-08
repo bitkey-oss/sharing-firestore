@@ -35,7 +35,12 @@ struct SwiftUIQueryDemo: SwiftUICaseStudy {
     .query(
       configuration: .init(
         path: "facts",
-        predicates: [.order(by: "count", descending: true)],
+        predicates: [
+          .or([
+            .isEqualTo("count", .integer(3)),
+            .isNotEqualTo("mm", .null)
+          ])
+        ],
         animation: .default
       )
     )
@@ -78,7 +83,7 @@ struct SwiftUIQueryDemo: SwiftUICaseStudy {
 
 private struct Fact: Sendable, Codable, Identifiable {
   @DocumentID var id: String?
-  var count: Int
+  var count: Int?
   var body: String
 }
 

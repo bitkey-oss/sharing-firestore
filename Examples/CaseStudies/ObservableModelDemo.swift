@@ -94,7 +94,7 @@ private class Model {
       configuration: .init(
         path: "todos",
         predicates: [
-          .isEqualTo("completed", true),
+          .isEqualTo("completed", .bool(true)),
           .order(by: "createdAt", descending: true)
         ],
         animation: .default

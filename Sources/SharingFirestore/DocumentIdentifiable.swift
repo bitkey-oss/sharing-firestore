@@ -20,7 +20,7 @@ public protocol DocumentIdentifiable: Identifiable {
   /// if the `id` is unknown or unstable during view updates.
   /// In such cases, `clientId` is used as a fallback to provide a stable identity.
   var clientId: UUID { get }
-  
+
   var documentId: String? { get }
 }
 
