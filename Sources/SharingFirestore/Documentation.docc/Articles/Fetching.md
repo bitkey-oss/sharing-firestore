@@ -41,7 +41,7 @@ You can add filtering conditions to your query by adding predicates:
     configuration: .init(
       path: "todos",
       predicates: [
-        .isEqualTo("completed", true),
+        .isEqualTo("completed", .bool(true)),
         .order(by: "createdAt", descending: true)
       ],
       animation: .default
@@ -82,7 +82,7 @@ standard predicates offer.
 
 ### Using different query predicates
 
-SharingFirestore supports a wide range of Firestore query predicates through the `QueryPredicate` type:
+SharingFirestore supports a wide range of Firestore query predicates through the `SharingQueryPredicates` type:
 
 * `.isEqualTo(field, value)`: Filter documents where field equals value
 * `.isIn(field, values)`: Filter documents where field value is in a collection of values
@@ -105,9 +105,9 @@ Here's an example that combines multiple predicates:
     configuration: .init(
       path: "products",
       predicates: [
-        .isGreaterThanOrEqualTo("price", 10.0),
-        .isLessThan("price", 50.0),
-        .isEqualTo("inStock", true),
+        .isGreaterThanOrEqualTo("price", .float(10.0)),
+        .isLessThan("price", .float(50.0)),
+        .isEqualTo("inStock", .bool(true)),
         .order(by: "price", descending: false)
       ],
       animation: .default

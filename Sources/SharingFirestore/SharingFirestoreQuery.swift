@@ -77,36 +77,75 @@ extension SharingFirestoreQuery.KeyRequest {
   /// ```
   public func applingPredicated(_ query: FirebaseFirestore.Query) -> FirebaseFirestore.Query {
     var query = query
-    for predicate in self.configuration.predicates {
-      switch predicate {
-      case let .isEqualTo(field, value):
-        query = query.whereField(field, isEqualTo: value)
-      case let .isIn(field, values):
-        query = query.whereField(field, in: values)
-      case let .isNotIn(field, values):
-        query = query.whereField(field, notIn: values)
-      case let .arrayContains(field, value):
-        query = query.whereField(field, arrayContains: value)
-      case let .arrayContainsAny(field, values):
-        query = query.whereField(field, arrayContainsAny: values)
-      case let .isLessThan(field, value):
-        query = query.whereField(field, isLessThan: value)
-      case let .isGreaterThan(field, value):
-        query = query.whereField(field, isGreaterThan: value)
-      case let .isLessThanOrEqualTo(field, value):
-        query = query.whereField(field, isLessThanOrEqualTo: value)
-      case let .isGreaterThanOrEqualTo(field, value):
-        query = query.whereField(field, isGreaterThanOrEqualTo: value)
-      case let .orderBy(field, value):
-        query = query.order(by: field, descending: value)
-      case let .limitTo(field):
-        query = query.limit(to: field)
-      case let .limitToLast(field):
-        query = query.limit(toLast: field)
-      }
-    }
+    let filters = self.configuration.predicates.compactMap(convertFilter(predicates:))
+    query = query.whereFilter(.andFilter(filters))
+    query = convertQuery(base: query, predicates: self.configuration.predicates)
     return query
   }
+}
+
+private func convertFilter(predicates: SharingQueryPredicates) -> FirebaseFirestore.Filter? {
+  switch predicates {
+  case let .isEqualTo(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, isEqualTo: value.swiftValue)
+  case let .isNotEqualTo(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, isNotEqualTo: value.swiftValue)
+  case let .isIn(field, values):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, in: values.map(\.swiftValue))
+  case let .isNotIn(field, values):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, notIn: values.map(\.swiftValue))
+  case let .arrayContains(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, arrayContains: value.swiftValue)
+  case let .arrayContainsAny(field, values):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, arrayContainsAny: values.map(\.swiftValue))
+  case let .isLessThan(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, isLessThan: value.swiftValue)
+  case let .isGreaterThan(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, isGreaterThan: value.swiftValue)
+  case let .isLessThanOrEqualTo(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, isLessThanOrEqualTo: value.swiftValue)
+  case let .isGreaterThanOrEqualTo(field, value):
+    let path = FieldPath(field.split(separator: ".").map(String.init))
+    return Filter.whereField(path, isGreaterOrEqualTo: value.swiftValue)
+  case let .and(predicates):
+    let andFilters = predicates.compactMap(convertFilter(predicates:))
+    return Filter.andFilter(andFilters)
+  case let .or(predicates):
+    let orFilters = predicates.compactMap(convertFilter(predicates:))
+    return Filter.orFilter(orFilters)
+  case .orderBy, .limitTo, .limitToLast:
+    return nil
+  }
+}
+
+private func convertQuery(
+  base: FirebaseFirestore.Query,
+  predicates: [SharingQueryPredicates]
+) -> FirebaseFirestore.Query {
+  var query = base
+  for predicate in predicates {
+    switch predicate {
+    case let .orderBy(field, isDesc):
+      let path = FieldPath(field.split(separator: ".").map(String.init))
+      query = query.order(by: path, descending: isDesc)
+    case let .limitTo(count):
+      query = query.limit(to: count)
+    case let .limitToLast(count):
+      query = query.limit(toLast: count)
+    default:
+      continue
+    }
+  }
+  return query
 }
 
 extension SharingFirestoreQuery {
@@ -117,10 +156,7 @@ extension SharingFirestoreQuery {
     public var path: String
 
     /// The query's predicates.
-    public var predicates: [QueryPredicate]
-
-    /// The query's hash value.
-    public var predicatesHashValue: Int
+    public var predicates: [SharingQueryPredicates]
 
     /// Source of the data.
     public var source: FirestoreSource = .default
@@ -137,15 +173,13 @@ extension SharingFirestoreQuery {
     #if canImport(SwiftUI)
       public init(
         path: String,
-        predicates: [QueryPredicate] = [],
-        predicatesHashValue: Int? = nil,
+        predicates: [SharingQueryPredicates] = [],
         source: FirestoreSource = .default,
         testingValue: (any TestingValues)? = nil,
         animation: Animation? = nil
       ) {
         self.path = path
         self.predicates = predicates
-        self.predicatesHashValue = predicatesHashValue ?? 0
         self.source = source
         self.testingValue = testingValue
         self.animation = animation
@@ -153,8 +187,7 @@ extension SharingFirestoreQuery {
     #else
       public init(
         path: String,
-        predicates: [QueryPredicate] = [],
-        predicatesHashValue: Int? = nil,
+        predicates: [SharingQueryPredicates] = [],
         source: FirestoreSource = .default,
         testingValue: ReturnValue? = nil
       ) {
@@ -170,12 +203,15 @@ extension SharingFirestoreQuery {
       lhs: SharingFirestoreQuery.Configuration<ReturnValue>,
       rhs: SharingFirestoreQuery.Configuration<ReturnValue>
     ) -> Bool {
-      lhs.path == rhs.path && lhs.predicatesHashValue == rhs.predicatesHashValue
+      lhs.path == rhs.path
+        && lhs.predicates == rhs.predicates
+        && lhs.source == rhs.source
     }
 
     public func hash(into hasher: inout Hasher) {
       hasher.combine(path)
-      hasher.combine(predicatesHashValue)
+      hasher.combine(predicates)
+      hasher.combine(source)
     }
   }
 }
