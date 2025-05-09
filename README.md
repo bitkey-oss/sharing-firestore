@@ -1,15 +1,17 @@
 # SharingFirestore
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bitkey-oss/sharing-firestore)
+
 A lightweight wrapper for Firebase's Firestore database that integrates with the Sharing library.
 
 A swift library that extends the [swift-sharing](https://github.com/pointfreeco/swift-sharing) library with support for Firebase's Firestore.
 
-* [Overview](#Overview)
-* [Quick start](#Quick-start)
-* [Demos](#Demos)
-* [Documentation](#Documentation)
-* [Installation](#Installation)
-* [License](#License)
+- [Overview](#Overview)
+- [Quick start](#Quick-start)
+- [Demos](#Demos)
+- [Documentation](#Documentation)
+- [Installation](#Installation)
+- [License](#License)
 
 ## Overview
 
@@ -42,7 +44,7 @@ struct MyApp: App {
 ```
 
 > Note: For more information on preparing Firestore, see
-[Preparing Firestore][preparing-db-article].
+> [Preparing Firestore][preparing-db-article].
 
 This `defaultFirestore` connection is used implicitly by SharingFirestore's strategies:
 
@@ -72,7 +74,6 @@ private var todos: IdentifiedArrayOf<Todo>
 private var facts: IdentifiedArrayOf<Fact>
 ```
 
-
 And you can access the Firestore database throughout your application using the dependency system:
 
 ```swift
@@ -85,32 +86,32 @@ try database.collection("todos").addDocument(from: Todo(memo: "New todo", comple
 This is all you need to know to get started with SharingFirestore, but there's much more to learn. Read
 the [articles][articles] below to learn how to best utilize this library:
 
-* [Fetching model data][fetching-article]
-* [Syncing model data][syncing-article]
-* [Observing changes to model data][observing-article]
-* [Preparing Firestore][preparing-db-article]
-* [Dynamic queries][dynamic-queries-article]
+- [Fetching model data][fetching-article]
+- [Syncing model data][syncing-article]
+- [Observing changes to model data][observing-article]
+- [Preparing Firestore][preparing-db-article]
+- [Dynamic queries][dynamic-queries-article]
 
-[dynamic-queries-article]: https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore/dynamicqueries
-[articles]: https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore#Essentials
-[observing-article]: https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore/observing
-[fetching-article]: https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore/fetching
-[syncing-article]: https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore/syncing
-[preparing-db-article]: https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore/preparingdatabase
+[dynamic-queries-article]: https://deepwiki.com/bitkey-oss/sharing-firestore/5.3-dynamic-query-examples
+[articles]: https://deepwiki.com/bitkey-oss/sharing-firestore/1-sharingfirestore-overview
+[observing-article]: https://deepwiki.com/bitkey-oss/sharing-firestore/5.2-observable-model-integration
+[fetching-article]: https://deepwiki.com/bitkey-oss/sharing-firestore/3.1-fetching-data-with-@sharedreader
+[syncing-article]: https://deepwiki.com/bitkey-oss/sharing-firestore/3.2-syncing-data-with-@shared
+[preparing-db-article]: https://deepwiki.com/bitkey-oss/sharing-firestore/2.2-setting-up-sharingfirestore
 
 ## Demos
 
 This repo comes with several examples to demonstrate how to solve common and complex problems with
 SharingFirestore. Check out [this](./Examples) directory to see them all, including:
 
-  * [Case Studies](./Examples/CaseStudies):
-    A number of case studies demonstrating the built-in features of the library, including querying, syncing, dynamic queries, and integration with @Observable models.
+- [Case Studies](./Examples/CaseStudies):
+  A number of case studies demonstrating the built-in features of the library, including querying, syncing, dynamic queries, and integration with @Observable models.
 
 ## Documentation
 
 The documentation for releases and `main` are available here:
 
-* [`main`](https://swiftpackageindex.com/bitkey-oss/sharing-firestore/main/documentation/sharingfirestore/)
+- [`main`](https://deepwiki.com/bitkey-oss/sharing-firestore)
 
 ## Installation
 
@@ -121,7 +122,7 @@ You can add SharingFirestore to an Xcode project by adding it to your project as
 If you want to use SharingFirestore in a [SwiftPM](https://swift.org/package-manager/) project, it's as
 simple as adding it to your `Package.swift`:
 
-``` swift
+```swift
 dependencies: [
   .package(url: "https://github.com/bitkey-oss/sharing-firestore", from: "0.1.0")
 ]
