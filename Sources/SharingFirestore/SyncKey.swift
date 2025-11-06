@@ -365,9 +365,11 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
         let snapshot = try await database.collection(collectionPath).getDocuments()
         let storedIds: Set<String> = Set(snapshot.documents.compactMap(\.documentID))
         let currentIds: Set<String> = Set(value.compactMap(\.documentId))
+        // Firestoreにあってローカルになくなるものは削除
         let idsToDelete = storedIds.subtracting(currentIds)
-        let idsToUpdate = currentIds.intersection(storedIds)
-
+        // ローカルにあってdocumentIdがあるものはそのIDでsetDataする
+        let updateItems = value.filter { $0.documentId != nil }
+        // ローカルにあってdocumentIdがないものはIDを採番した上でsetDataする
         let insertItems = value.filter { $0.documentId == nil }
         let insertDocuments: [DocumentReference] = insertItems.map { _ in
           database.collection(collectionPath).document()
@@ -380,11 +382,10 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
         for (ref, data) in zip(insertDocuments, insertItems) {
           try batch.setData(from: data, forDocument: ref, merge: true)
         }
-        for id in idsToUpdate {
-          guard let data = value.first(where: { $0.documentId == id }) else {
-            continue
-          }
-          let ref: DocumentReference = database.collection(collectionPath).document(id)
+        for data in updateItems {
+          let ref: DocumentReference = database.collection(collectionPath).document(
+            data.documentId!
+          )
           try batch.setData(from: data, forDocument: ref, merge: true)
         }
         try await batch.commit()
