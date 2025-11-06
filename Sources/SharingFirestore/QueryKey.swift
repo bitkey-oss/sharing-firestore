@@ -1,5 +1,6 @@
 import Dependencies
 import Dispatch
+@preconcurrency import FirebaseAuth
 @preconcurrency import FirebaseFirestore
 import IdentifiedCollections
 import Sharing
@@ -191,6 +192,12 @@ where Value.Element: Decodable & Sendable {
       }
       return
     }
+    guard Auth.auth(app: database.app).currentUser != nil else {
+      withResume {
+        continuation.resumeReturningInitialValue()
+      }
+      return
+    }
     Task {
       do {
         let source = request.configuration.source
@@ -212,35 +219,53 @@ where Value.Element: Decodable & Sendable {
   public func subscribe(
     context: LoadContext<Value>, subscriber: SharedSubscriber<Value>
   ) -> SharedSubscription {
-    let query: FirebaseFirestore.Query
-    do {
-      query = try request.query(database)
-    } catch {
-      subscriber.yield(throwing: error)
-      return SharedSubscription {}
-    }
-    let registration = query.addSnapshotListener { snapshot, error in
-      if let error {
-        withResume {
+    var snapshotRegistration: (any ListenerRegistration)? = nil
+    let authListenerRegistration = Auth.auth(app: database.app).addStateDidChangeListener {
+      _, user in
+      if user != nil {
+        let query: FirebaseFirestore.Query
+        do {
+          query = try request.query(database)
+          let registration = query.addSnapshotListener { snapshot, error in
+            if let error {
+              withResume {
+                subscriber.yield(throwing: error)
+              }
+              return
+            }
+            guard let snapshot = snapshot else {
+              withResume {
+                subscriber.yieldReturningInitialValue()
+              }
+              return
+            }
+            let values = snapshot.documents.compactMap {
+              return try? $0.data(as: Element.self)
+            }
+            withResume {
+              subscriber.yield(Value(values))
+            }
+          }
+          snapshotRegistration = registration
+        } catch {
           subscriber.yield(throwing: error)
         }
-        return
-      }
-      guard let snapshot = snapshot else {
-        withResume {
-          subscriber.yieldReturningInitialValue()
-        }
-        return
-      }
-      let values = snapshot.documents.compactMap {
-        return try? $0.data(as: Element.self)
-      }
-      withResume {
-        subscriber.yield(Value(values))
+      } else {
+        snapshotRegistration?.remove()
       }
     }
+    let task = Task {
+      // authListenerRegistration自体をSendすることはできない
+      // なのでTaskをsendして終了時にはcancelを呼び出すことで
+      // sleepを抜けてremove処理を実行するようにスケジュールする
+      try? await Task.sleep(nanoseconds: .max)
+      snapshotRegistration?.remove()
+      Auth
+        .auth(app: database.app)
+        .removeStateDidChangeListener(authListenerRegistration)
+    }
     return SharedSubscription {
-      registration.remove()
+      task.cancel()
     }
   }
 }
