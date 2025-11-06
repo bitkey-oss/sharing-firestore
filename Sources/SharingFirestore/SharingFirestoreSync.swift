@@ -90,7 +90,7 @@ extension SharingFirestoreSync {
   /// ```
   public protocol KeyCollectionRequest<Value>: Hashable, Sendable {
     associatedtype Value: Codable & DocumentIdentifiable & Sendable
-    var configuration: SharingFirestoreSync.CollectionConfiguration<Value> { get }
+    var configuration: SharingFirestoreSync.CollectionConfiguration<Value>? { get }
   }
 
   /// A type that can request a single document from a database.
@@ -126,7 +126,7 @@ extension SharingFirestoreSync {
   /// ```
   public protocol KeyDocumentRequest<Value>: Hashable, Sendable {
     associatedtype Value: Codable & Sendable
-    var configuration: SharingFirestoreSync.DocumentConfiguration<Value> { get }
+    var configuration: SharingFirestoreSync.DocumentConfiguration<Value>? { get }
   }
 }
 

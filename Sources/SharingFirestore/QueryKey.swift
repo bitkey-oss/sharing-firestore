@@ -1,5 +1,6 @@
 import Dependencies
 import Dispatch
+@preconcurrency import FirebaseAuth
 @preconcurrency import FirebaseFirestore
 import IdentifiedCollections
 import Sharing
@@ -166,7 +167,7 @@ where Value.Element: Decodable & Sendable {
 
   func withResume(_ action: () -> Void) {
     #if canImport(SwiftUI)
-      withAnimation(request.configuration.animation) {
+      withAnimation(request.configuration?.animation) {
         action()
       }
     #else
@@ -175,12 +176,12 @@ where Value.Element: Decodable & Sendable {
   }
 
   public func load(context: LoadContext<Value>, continuation: LoadContinuation<Value>) {
-    guard case .userInitiated = context else {
+    guard case .userInitiated = context, let configuration = request.configuration else {
       continuation.resumeReturningInitialValue()
       return
     }
     guard !isTesting else {
-      if let testingValue = request.configuration.testingValue {
+      if let testingValue = configuration.testingValue {
         withResume {
           continuation.resume(returning: Value(testingValue))
         }
@@ -191,10 +192,19 @@ where Value.Element: Decodable & Sendable {
       }
       return
     }
+    guard
+      Auth.auth(app: database.app).currentUser != nil,
+      let query = try? request.query(database)
+    else {
+      withResume {
+        continuation.resumeReturningInitialValue()
+      }
+      return
+    }
     Task {
       do {
-        let source = request.configuration.source
-        let snapshot = try await request.query(database).getDocuments(source: source)
+        let source = configuration.source
+        let snapshot = try await query.getDocuments(source: source)
         let values = snapshot.documents.compactMap {
           try? $0.data(as: Element.self)
         }
@@ -212,35 +222,49 @@ where Value.Element: Decodable & Sendable {
   public func subscribe(
     context: LoadContext<Value>, subscriber: SharedSubscriber<Value>
   ) -> SharedSubscription {
-    let query: FirebaseFirestore.Query
-    do {
-      query = try request.query(database)
-    } catch {
-      subscriber.yield(throwing: error)
-      return SharedSubscription {}
+    var snapshotRegistration: (any ListenerRegistration)? = nil
+    let authListenerRegistration = Auth.auth(app: database.app).addStateDidChangeListener {
+      _, user in
+      if user != nil {
+        if let query = try? request.query(database) {
+          let registration = query.addSnapshotListener { snapshot, error in
+            if let error {
+              withResume {
+                subscriber.yield(throwing: error)
+              }
+              return
+            }
+            guard let snapshot = snapshot else {
+              withResume {
+                subscriber.yieldReturningInitialValue()
+              }
+              return
+            }
+            let values = snapshot.documents.compactMap {
+              return try? $0.data(as: Element.self)
+            }
+            withResume {
+              subscriber.yield(Value(values))
+            }
+          }
+          snapshotRegistration = registration
+        }
+      } else {
+        snapshotRegistration?.remove()
+      }
     }
-    let registration = query.addSnapshotListener { snapshot, error in
-      if let error {
-        withResume {
-          subscriber.yield(throwing: error)
-        }
-        return
-      }
-      guard let snapshot = snapshot else {
-        withResume {
-          subscriber.yieldReturningInitialValue()
-        }
-        return
-      }
-      let values = snapshot.documents.compactMap {
-        return try? $0.data(as: Element.self)
-      }
-      withResume {
-        subscriber.yield(Value(values))
-      }
+    let task = Task {
+      // authListenerRegistration自体をSendすることはできない
+      // なのでTaskをsendして終了時にはcancelを呼び出すことで
+      // sleepを抜けてremove処理を実行するようにスケジュールする
+      try? await Task.sleep(nanoseconds: .max)
+      snapshotRegistration?.remove()
+      Auth
+        .auth(app: database.app)
+        .removeStateDidChangeListener(authListenerRegistration)
     }
     return SharedSubscription {
-      registration.remove()
+      task.cancel()
     }
   }
 }
@@ -255,10 +279,11 @@ private struct FetchQueryConfigurationRequest<Element: Decodable & Sendable>: Sh
     self.configuration = configuration
   }
 
-  internal var configuration: SharingFirestoreQuery.Configuration<Element>
+  internal var configuration: SharingFirestoreQuery.Configuration<Element>?
 
-  internal func query(_ db: Firestore) throws -> Query {
-    var query: Query = db.collection(configuration.path)
+  internal func query(_ db: Firestore) throws -> Query? {
+    guard let config = self.configuration else { return nil }
+    var query: Query = db.collection(config.path)
     query = applingPredicated(query)
     return query
   }
