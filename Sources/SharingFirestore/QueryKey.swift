@@ -167,7 +167,7 @@ where Value.Element: Decodable & Sendable {
 
   func withResume(_ action: () -> Void) {
     #if canImport(SwiftUI)
-      withAnimation(request.configuration.animation) {
+      withAnimation(request.configuration?.animation) {
         action()
       }
     #else
@@ -176,12 +176,12 @@ where Value.Element: Decodable & Sendable {
   }
 
   public func load(context: LoadContext<Value>, continuation: LoadContinuation<Value>) {
-    guard case .userInitiated = context else {
+    guard case .userInitiated = context, let configuration = request.configuration else {
       continuation.resumeReturningInitialValue()
       return
     }
     guard !isTesting else {
-      if let testingValue = request.configuration.testingValue {
+      if let testingValue = configuration.testingValue {
         withResume {
           continuation.resume(returning: Value(testingValue))
         }
@@ -192,7 +192,10 @@ where Value.Element: Decodable & Sendable {
       }
       return
     }
-    guard Auth.auth(app: database.app).currentUser != nil else {
+    guard
+      Auth.auth(app: database.app).currentUser != nil,
+      let query = try? request.query(database)
+    else {
       withResume {
         continuation.resumeReturningInitialValue()
       }
@@ -200,8 +203,8 @@ where Value.Element: Decodable & Sendable {
     }
     Task {
       do {
-        let source = request.configuration.source
-        let snapshot = try await request.query(database).getDocuments(source: source)
+        let source = configuration.source
+        let snapshot = try await query.getDocuments(source: source)
         let values = snapshot.documents.compactMap {
           try? $0.data(as: Element.self)
         }
@@ -223,9 +226,7 @@ where Value.Element: Decodable & Sendable {
     let authListenerRegistration = Auth.auth(app: database.app).addStateDidChangeListener {
       _, user in
       if user != nil {
-        let query: FirebaseFirestore.Query
-        do {
-          query = try request.query(database)
+        if let query = try? request.query(database) {
           let registration = query.addSnapshotListener { snapshot, error in
             if let error {
               withResume {
@@ -247,8 +248,6 @@ where Value.Element: Decodable & Sendable {
             }
           }
           snapshotRegistration = registration
-        } catch {
-          subscriber.yield(throwing: error)
         }
       } else {
         snapshotRegistration?.remove()
@@ -280,10 +279,11 @@ private struct FetchQueryConfigurationRequest<Element: Decodable & Sendable>: Sh
     self.configuration = configuration
   }
 
-  internal var configuration: SharingFirestoreQuery.Configuration<Element>
+  internal var configuration: SharingFirestoreQuery.Configuration<Element>?
 
-  internal func query(_ db: Firestore) throws -> Query {
-    var query: Query = db.collection(configuration.path)
+  internal func query(_ db: Firestore) throws -> Query? {
+    guard let config = self.configuration else { return nil }
+    var query: Query = db.collection(config.path)
     query = applingPredicated(query)
     return query
   }

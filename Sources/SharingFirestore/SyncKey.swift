@@ -234,7 +234,7 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
 
   func withResume(_ action: () -> Void) {
     #if canImport(SwiftUI)
-      withAnimation(request.configuration.animation) {
+      withAnimation(request.configuration?.animation) {
         action()
       }
     #else
@@ -243,14 +243,14 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
   }
 
   public func load(context: LoadContext<Value>, continuation: LoadContinuation<Value>) {
-    guard case .userInitiated = context else {
+    guard case .userInitiated = context, let configuration = request.configuration else {
       withResume {
         continuation.resumeReturningInitialValue()
       }
       return
     }
     guard !isTesting else {
-      if let testingValue = request.configuration.testingValue {
+      if let testingValue = configuration.testingValue {
         withResume {
           continuation.resume(returning: Value(testingValue))
         }
@@ -269,11 +269,11 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
     }
     Task {
       do {
-        let source = request.configuration.source
+        let source = configuration.source
         var query: FirebaseFirestore.Query = database.collection(
-          request.configuration.collectionPath
+          configuration.collectionPath
         )
-        if let orderBy = request.configuration.orderBy {
+        if let orderBy = configuration.orderBy {
           query = query.order(by: orderBy.field, descending: orderBy.isDescending)
         }
         let snapshot = try await query.getDocuments(
@@ -299,34 +299,36 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
     var snapshotRegistration: (any ListenerRegistration)? = nil
     let authListenerRegistration = Auth.auth(app: database.app).addStateDidChangeListener {
       _, user in
-      if let user {
-        var query: FirebaseFirestore.Query = database.collection(
-          request.configuration.collectionPath
-        )
-        if let orderBy = request.configuration.orderBy {
-          query = query.order(by: orderBy.field, descending: orderBy.isDescending)
-        }
-        let registration = query.addSnapshotListener { snapshot, error in
-          if let error {
-            withResume {
-              subscriber.yield(throwing: error)
+      if user != nil {
+        if let configuration = request.configuration {
+          var query: FirebaseFirestore.Query = database.collection(
+            configuration.collectionPath
+          )
+          if let orderBy = configuration.orderBy {
+            query = query.order(by: orderBy.field, descending: orderBy.isDescending)
+          }
+          let registration = query.addSnapshotListener { snapshot, error in
+            if let error {
+              withResume {
+                subscriber.yield(throwing: error)
+              }
+              return
             }
-            return
-          }
-          guard let snapshot = snapshot else {
-            withResume {
-              subscriber.yieldReturningInitialValue()
+            guard let snapshot = snapshot else {
+              withResume {
+                subscriber.yieldReturningInitialValue()
+              }
+              return
             }
-            return
+            let values = snapshot.documents.compactMap {
+              try? $0.data(as: Element.self)
+            }
+            withResume {
+              subscriber.yield(Value(values))
+            }
           }
-          let values = snapshot.documents.compactMap {
-            try? $0.data(as: Element.self)
-          }
-          withResume {
-            subscriber.yield(Value(values))
-          }
+          snapshotRegistration = registration
         }
-        snapshotRegistration = registration
       } else {
         snapshotRegistration?.remove()
       }
@@ -351,12 +353,15 @@ where Value.Element: Codable & DocumentIdentifiable & Sendable {
     context: SaveContext,
     continuation: SaveContinuation
   ) {
-    guard Auth.auth(app: database.app).currentUser != nil else {
+    guard
+      Auth.auth(app: database.app).currentUser != nil,
+      let configuration = request.configuration
+    else {
       return
     }
     Task {
       do {
-        let collectionPath = request.configuration.collectionPath
+        let collectionPath = configuration.collectionPath
         let snapshot = try await database.collection(collectionPath).getDocuments()
         let storedIds: Set<String> = Set(snapshot.documents.compactMap(\.documentID))
         let currentIds: Set<String> = Set(value.compactMap(\.documentId))
@@ -422,7 +427,7 @@ public struct SyncDocumentKey<Value: Codable & Sendable>: SharedKey {
 
   func withResume(_ action: () -> Void) {
     #if canImport(SwiftUI)
-      withAnimation(request.configuration.animation) {
+      withAnimation(request.configuration?.animation) {
         action()
       }
     #else
@@ -431,14 +436,14 @@ public struct SyncDocumentKey<Value: Codable & Sendable>: SharedKey {
   }
 
   public func load(context: LoadContext<Value>, continuation: LoadContinuation<Value>) {
-    guard case .userInitiated = context else {
+    guard case .userInitiated = context, let configuration = request.configuration else {
       withResume {
         continuation.resumeReturningInitialValue()
       }
       return
     }
     guard !isTesting else {
-      if let testingValue = request.configuration.testingValue {
+      if let testingValue = configuration.testingValue {
         withResume {
           continuation.resume(returning: testingValue)
         }
@@ -457,9 +462,9 @@ public struct SyncDocumentKey<Value: Codable & Sendable>: SharedKey {
     }
     Task {
       do {
-        let source = request.configuration.source
-        let collectionPath = request.configuration.collectionPath
-        let documentId = request.configuration.documentId
+        let source = configuration.source
+        let collectionPath = configuration.collectionPath
+        let documentId = configuration.documentId
         let value = try await database.collection(collectionPath).document(documentId).getDocument(
           as: Value.self,
           source: source
@@ -482,34 +487,36 @@ public struct SyncDocumentKey<Value: Codable & Sendable>: SharedKey {
     let authListenerRegistration = Auth.auth(app: database.app).addStateDidChangeListener {
       _, user in
       if user != nil {
-        let collectionPath = request.configuration.collectionPath
-        let documentId = request.configuration.documentId
-        let registration = database.collection(collectionPath).document(documentId)
-          .addSnapshotListener { snapshot, error in
-            if let error {
-              withResume {
-                subscriber.yield(throwing: error)
+        if let configuration = request.configuration {
+          let collectionPath = configuration.collectionPath
+          let documentId = configuration.documentId
+          let registration = database.collection(collectionPath).document(documentId)
+            .addSnapshotListener { snapshot, error in
+              if let error {
+                withResume {
+                  subscriber.yield(throwing: error)
+                }
+                return
               }
-              return
+              guard let snapshot = snapshot else {
+                withResume {
+                  subscriber.yieldReturningInitialValue()
+                }
+                return
+              }
+              do {
+                let value = try snapshot.data(as: Value.self)
+                withResume {
+                  subscriber.yield(value)
+                }
+              } catch {
+                withResume {
+                  subscriber.yield(throwing: error)
+                }
+              }
             }
-            guard let snapshot = snapshot else {
-              withResume {
-                subscriber.yieldReturningInitialValue()
-              }
-              return
-            }
-            do {
-              let value = try snapshot.data(as: Value.self)
-              withResume {
-                subscriber.yield(value)
-              }
-            } catch {
-              withResume {
-                subscriber.yield(throwing: error)
-              }
-            }
-          }
-        snapshotRegistration = registration
+          snapshotRegistration = registration
+        }
       } else {
         snapshotRegistration?.remove()
       }
@@ -534,13 +541,16 @@ public struct SyncDocumentKey<Value: Codable & Sendable>: SharedKey {
     context: SaveContext,
     continuation: SaveContinuation
   ) {
-    guard Auth.auth(app: database.app).currentUser != nil else {
+    guard
+      Auth.auth(app: database.app).currentUser != nil,
+      let configuration = request.configuration
+    else {
       return
     }
     Task {
       do {
-        let collectionPath = request.configuration.collectionPath
-        let documentId = request.configuration.documentId
+        let collectionPath = configuration.collectionPath
+        let documentId = configuration.documentId
         try database.collection(collectionPath).document(documentId).setData(
           from: value,
           merge: true
@@ -567,7 +577,7 @@ private struct SyncCollectionConfigurationRequest<
     self.configuration = configuration
   }
 
-  internal var configuration: SharingFirestoreSync.CollectionConfiguration<Element>
+  internal var configuration: SharingFirestoreSync.CollectionConfiguration<Element>?
 }
 
 private struct SyncDocumentConfigurationRequest<Element: Codable & Sendable>: SharingFirestoreSync
@@ -580,5 +590,5 @@ private struct SyncDocumentConfigurationRequest<Element: Codable & Sendable>: Sh
     self.configuration = configuration
   }
 
-  internal var configuration: SharingFirestoreSync.DocumentConfiguration<Element>
+  internal var configuration: SharingFirestoreSync.DocumentConfiguration<Element>?
 }

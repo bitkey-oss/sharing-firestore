@@ -48,8 +48,8 @@ extension SharingFirestoreQuery {
   /// ```
   public protocol KeyRequest<Value>: Hashable, Sendable {
     associatedtype Value: Decodable & Sendable
-    var configuration: SharingFirestoreQuery.Configuration<Value> { get }
-    func query(_ db: Firestore) throws -> FirebaseFirestore.Query
+    var configuration: SharingFirestoreQuery.Configuration<Value>? { get }
+    func query(_ db: Firestore) throws -> FirebaseFirestore.Query?
   }
 }
 
@@ -76,10 +76,11 @@ extension SharingFirestoreQuery.KeyRequest {
   /// }
   /// ```
   public func applingPredicated(_ query: FirebaseFirestore.Query) -> FirebaseFirestore.Query {
+    guard let configuration else { return query }
     var query = query
-    let filters = self.configuration.predicates.compactMap(convertFilter(predicates:))
+    let filters = configuration.predicates.compactMap(convertFilter(predicates:))
     query = query.whereFilter(.andFilter(filters))
-    query = convertQuery(base: query, predicates: self.configuration.predicates)
+    query = convertQuery(base: query, predicates: configuration.predicates)
     return query
   }
 }
