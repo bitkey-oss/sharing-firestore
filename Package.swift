@@ -5,10 +5,11 @@ import PackageDescription
 let package = Package(
   name: "sharing-firestore",
   platforms: [
-    .iOS(.v13),
+    .iOS(.v15),
+    .macCatalyst(.v15),
     .macOS(.v10_15),
-    .tvOS(.v13),
-    .watchOS(.v7),
+    .tvOS(.v15),
+    .watchOS(.v7)
   ],
   products: [
     .library(
