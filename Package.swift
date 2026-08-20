@@ -29,7 +29,7 @@ let package = Package(
       dependencies: [
         .product(name: "FirebaseFirestore", package: "firebase-ios-sdk"),
         .product(name: "FirebaseAuth", package: "firebase-ios-sdk"),
-        .product(name: "Sharing", package: "swift-sharing", moduleAliases: ["Sharing": "SharingKit"]),
+        .product(name: "Sharing", package: "swift-sharing"),
         .product(name: "IdentifiedCollections", package: "swift-identified-collections"),
       ]
     ),
